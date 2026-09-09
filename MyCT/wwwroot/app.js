@@ -171,7 +171,9 @@ async function openCorso(id) {
     state.corso = (await api('/api/corsi')).find(c => c.Id === id);
     state.barche = await api(`/api/corsi/${id}/barche`);
     state.allievi = await api(`/api/corsi/${id}/persone?ruolo=ALLIEVO`);
-    state.istruttori = await api(`/api/corsi/${id}/persone`);
+    // Carica tutti i ruoli di istruttori (IS, ADV, AT)
+    const tutti = await api(`/api/corsi/${id}/persone`);
+    state.istruttori = tutti.filter(p => ['IS', 'ADV', 'AT'].includes(p.Ruolo));
     state.equipaggi = await api(`/api/corsi/${id}/equipaggi`);
     renderCorsoDetail();
 }
@@ -335,7 +337,11 @@ async function delPersona(id, tipo) {
     if (!confirm('Eliminare persona?')) return;
     await api('/api/persone/' + id, 'DELETE');
     if (tipo === 'allievo') state.allievi = await api(`/api/corsi/${state.corso.Id}/persone?ruolo=ALLIEVO`);
-    else state.istruttori = await api(`/api/corsi/${state.corso.Id}/persone?ruolo=IS`);
+    else {
+        // Ricarica tutti gli istruttori (IS, ADV, AT)
+        const tutti = await api(`/api/corsi/${state.corso.Id}/persone`);
+        state.istruttori = tutti.filter(p => ['IS', 'ADV', 'AT'].includes(p.Ruolo));
+    }
     renderCorsoDetail();
 }
 async function generaEquipaggi() {
