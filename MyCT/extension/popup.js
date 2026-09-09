@@ -3,22 +3,67 @@ const $ = (id) => document.getElementById(id);
 let extractedAllievi = [];
 let extractedIstruttori = [];
 
-// Scarica le foto direttamente nel MAIN world della pagina CVC
+// Scarica le foto direttamente nel MAIN world della pagina CVC mostrando una barra di progresso
 // (qui i cookie HttpOnly della sessione vengono inviati dalla fetch)
 // Accetta anche URL relativi e li risolve rispetto all'origine della pagina.
-// Non si fida solo del Content-Type: accetta blob con tipo image/*, application/octet-stream o vuoto,
-// purché la dimensione sia sufficiente (>200 bytes, per scartare pagine di errore minuscole).
-async function scaricaFotoMainWorld(tabId, urls) {
+async function scaricaFotoMainWorld(tabId, urls, tipo) {
     if (!urls.length) return [];
+    
+    // Inietta prima la UI della progress bar
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: (tipo, total) => {
+            let container = document.getElementById('cvc-progress-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'cvc-progress-container';
+                container.style.cssText = `
+                    position: fixed; top: 20px; right: 20px; z-index: 999999;
+                    background: rgba(0,0,0,0.85); color: #fff; padding: 15px;
+                    border-radius: 8px; font-family: sans-serif; min-width: 250px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                `;
+                document.body.appendChild(container);
+            }
+            
+            const title = document.createElement('div');
+            title.style.marginBottom = '10px';
+            title.style.fontWeight = 'bold';
+            title.textContent = `Scaricamento ${total} foto ${tipo.toLowerCase()}...`;
+            container.innerHTML = '';
+            container.appendChild(title);
+            
+            const barBg = document.createElement('div');
+            barBg.style.cssText = 'width: 100%; height: 20px; background: #444; border-radius: 10px; overflow: hidden; margin-bottom: 5px;';
+            const barFill = document.createElement('div');
+            barFill.style.cssText = 'width: 0%; height: 100%; background: #28a745; transition: width 0.3s ease;';
+            barBg.appendChild(barFill);
+            container.appendChild(barBg);
+            
+            const status = document.createElement('div');
+            status.style.fontSize = '12px';
+            status.textContent = '0 / ' + total;
+            container.appendChild(status);
+            
+            return { containerId: 'cvc-progress-container', barFillId: barFill.id || null, statusId: status.id || null };
+        },
+        args: [tipo, urls.length]
+    });
+
+    // Esegui il download con aggiornamenti della UI
     const results = await chrome.scripting.executeScript({
         target: { tabId },
         world: 'MAIN',
-        func: async (lista) => {
+        func: async (lista, tipo) => {
             const out = [];
+            const container = document.getElementById('cvc-progress-container');
+            const barFill = container ? container.querySelector('div[style*="background: #28a745"]') : null;
+            const statusDiv = container ? container.querySelector('div[style*="font-size: 12px"]') : null;
+            
             for (let i = 0; i < lista.length; i++) {
                 let url = lista[i];
                 try {
-                    // Risolvi URL relativi rispetto all'origine della pagina
                     if (url && !url.startsWith('http')) {
                         url = new URL(url, window.location.origin).href;
                     }
@@ -26,32 +71,55 @@ async function scaricaFotoMainWorld(tabId, urls) {
                     if (!res.ok) {
                         console.warn(`[CVC] Foto ${i}: HTTP ${res.status} per ${url}`);
                         out.push({ i, d: '' });
-                        continue;
+                    } else {
+                        const blob = await res.blob();
+                        const ct = (blob.type || '').toLowerCase();
+                        const isImage = ct.startsWith('image/') || ct === 'application/octet-stream' || ct === '';
+                        if (!blob || blob.size < 200 || !isImage) {
+                            console.warn(`[CVC] Foto ${i}: scartata (size=${blob.size}, type=${ct})`);
+                            out.push({ i, d: '' });
+                        } else {
+                            const d = await new Promise(r => {
+                                const fr = new FileReader();
+                                fr.onload = () => r(fr.result);
+                                fr.onerror = () => r('');
+                                fr.readAsDataURL(blob);
+                            });
+                            out.push({ i, d: d || '' });
+                        }
                     }
-                    const blob = await res.blob();
-                    const ct = (blob.type || '').toLowerCase();
-                    const isImage = ct.startsWith('image/') || ct === 'application/octet-stream' || ct === '';
-                    if (!blob || blob.size < 200 || !isImage) {
-                        console.warn(`[CVC] Foto ${i}: scartata (size=${blob.size}, type=${ct})`);
-                        out.push({ i, d: '' });
-                        continue;
-                    }
-                    const d = await new Promise(r => {
-                        const fr = new FileReader();
-                        fr.onload = () => r(fr.result);
-                        fr.onerror = () => r('');
-                        fr.readAsDataURL(blob);
-                    });
-                    out.push({ i, d: d || '' });
                 } catch (e) {
                     console.warn(`[CVC] Foto ${i}: errore fetch - ${e.message}`);
                     out.push({ i, d: '' });
                 }
+                
+                // Aggiorna UI
+                if (barFill && statusDiv) {
+                    const pct = Math.round(((i + 1) / lista.length) * 100);
+                    barFill.style.width = pct + '%';
+                    statusDiv.textContent = (i + 1) + ' / ' + lista.length + ' (' + pct + '%)';
+                }
+                
+                await new Promise(r => setTimeout(r, 50));
             }
+            
             return out;
         },
-        args: [urls],
+        args: [urls, tipo]
     });
+    
+    // Rimuovi la UI dopo un breve delay
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: () => {
+            setTimeout(() => {
+                const container = document.getElementById('cvc-progress-container');
+                if (container && container.parentNode) container.remove();
+            }, 1500);
+        }
+    });
+    
     return results[0]?.result || [];
 }
 
@@ -154,7 +222,7 @@ async function doImportPersons(persons, label, tipo, cid) {
     const urlList = persons.map(p => p.Foto).filter(Boolean);
     if (urlList.length > 0) {
         status(`Scaricamento ${urlList.length} foto ${label} dalla pagina CVC…`, 'info');
-        const fotoResults = await scaricaFotoMainWorld(tab.id, urlList);
+        const fotoResults = await scaricaFotoMainWorld(tab.id, urlList, label);
         const fotoMap = {};
         for (const r of fotoResults) {
             fotoMap[r.i] = r.d;
