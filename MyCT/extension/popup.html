@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; width: 380px; padding: 12px; background: #0b1f3a; color: #e8eef7; }
+        h2 { font-size: 1rem; color: #f0a500; margin: 0 0 8px; }
+        label { font-size: 0.8rem; color: #9fb6d4; }
+        input, select { width: 100%; padding: 6px; margin: 4px 0 10px; background: #0e2a4d; color: #e8eef7; border: 1px solid #1d4474; border-radius: 4px; }
+        button { width: 100%; padding: 8px; margin: 4px 0; border: none; border-radius: 4px; background: #f0a500; color: #0b1f3a; font-weight: 600; cursor: pointer; }
+        button.secondary { background: #16355c; color: #cfe0f5; }
+        button.danger { background: #b3273c; color: #fff; }
+        .import-btn { margin-top: 4px !important; background: #1d4474 !important; color: #cfe0f5 !important; font-size: 0.75rem; }
+        .import-btn:hover { background: #f0a500 !important; color: #0b1f3a !important; }
+        #status { font-size: 0.8rem; margin-top: 8px; min-height: 30px; word-break: break-word; white-space: pre-line; }
+        .ok { color: #4aa87a; }
+        .err { color: #e0697a; }
+        .info { color: #9fb6d4; }
+        .preview { display: none; margin-top: 8px; border: 1px solid #1d4474; border-radius: 6px; max-height: 160px; overflow-y: auto; background: #0e2a4d; }
+        .preview-header { font-size: 0.75rem; color: #f0a500; padding: 6px 8px; border-bottom: 1px solid #1d4474; font-weight: bold; }
+        .preview-item { font-size: 0.75rem; padding: 4px 8px; border-bottom: 1px solid #173a66; display: flex; justify-content: space-between; gap: 6px; }
+        .preview-item .meta { color: #9fb6d4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .preview-item .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .count-badge { display: inline-block; background: #f0a500; color: #0b1f3a; border-radius: 10px; padding: 0 6px; font-size: 0.7rem; font-weight: bold; margin-left: 4px; }
+        hr { border: none; border-top: 1px solid #1d4474; margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <h2>CVC Equipaggi Importer</h2>
+    <label for="cid">ID Corso (colonna ID nella tabella Corsi)</label>
+    <input type="number" id="cid" placeholder="es. 2">
+    <button id="extract-allievi" class="secondary">🧑 Estrai Allievi</button>
+    <div id="preview-allievi" class="preview">
+        <div id="preview-header-allievi" class="preview-header"></div>
+        <div id="preview-list-allievi"></div>
+        <div style="padding: 6px 8px;">
+            <button id="import-allievi" class="import-btn" disabled>📥 Importa Allievi</button>
+        </div>
+    </div>
+    <button id="extract-istruttori" class="secondary">👨‍🏫 Estrai Istruttori</button>
+    <div id="preview-istruttori" class="preview">
+        <div id="preview-header-istruttori" class="preview-header"></div>
+        <div id="preview-list-istruttori"></div>
+        <div style="padding: 6px 8px;">
+            <button id="import-istruttori" class="import-btn" disabled>📥 Importa Istruttori</button>
+        </div>
+    </div>
+    <button id="import-all" disabled>📥 Importa Tutto (Allievi + Istruttori)</button>
+    <div id="status" class="info">Apri la pagina CVC corrispondente, premi Estrai, controlla l'anteprima, poi Importa.</div>
+    <script src="popup.js"></script>
+</body>
+</html>

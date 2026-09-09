@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "CVC Equipaggi Importer",
+  "version": "1.0.0",
+  "description": "Estrae allievi e istruttori dal sito CVC e li invia all'app Equipaggi locale",
+  "icons": {
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
+  },	
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["http://localhost:1967/*", "https://www.centrovelicocaprera.it/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "CVC Equipaggi Importer",
+    "default_icon": {
+      "16": "logo.png",
+      "32": "logo.png",
+      "48": "logo.png",
+      "128": "logo.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["capture.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
